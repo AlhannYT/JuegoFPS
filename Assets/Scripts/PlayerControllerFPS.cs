@@ -15,6 +15,12 @@ namespace JuegoFPS
         public float jumpForce = 5.5f;
         public float gravity = -18f;
 
+        [Header("Salto Mejorado")]
+        [Tooltip("Tiempo de tolerancia para saltar tras dejar el suelo")]
+        public float coyoteTime = 0.15f;
+        [Tooltip("Tiempo que se recuerda la pulsación de salto antes de tocar suelo")]
+        public float jumpBufferTime = 0.2f;
+
         [Header("Cámara / Ratón")]
         public Transform cameraTransform;
         public float mouseSensitivity = 0.16f;
@@ -27,6 +33,8 @@ namespace JuegoFPS
         private Vector3 _velocity;
         private float _pitch;
         private float _invulnTimer;
+        private float _coyoteTimer;
+        private float _jumpBufferTimer;
 
         private void Start()
         {
@@ -49,12 +57,18 @@ namespace JuegoFPS
                 return;
             }
 
+            HandleCursorToggle();
+
+            // Si el juego está en pausa, no mover cámara ni personaje
+            if (HUDManager.Instance != null && HUDManager.Instance.IsPaused)
+            {
+                return;
+            }
+
             if (_invulnTimer > 0f)
             {
                 _invulnTimer -= Time.deltaTime;
             }
-
-            HandleCursorToggle();
 
             if (Cursor.lockState == CursorLockMode.Locked)
             {
@@ -71,10 +85,19 @@ namespace JuegoFPS
 
             if (kb != null && kb.escapeKey.wasPressedThisFrame)
             {
-                LockCursor(Cursor.lockState != CursorLockMode.Locked);
+                if (HUDManager.Instance != null)
+                {
+                    HUDManager.Instance.TogglePause();
+                }
+                else
+                {
+                    LockCursor(Cursor.lockState != CursorLockMode.Locked);
+                }
             }
             else if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked)
             {
+                // Si está en menú de pausa o gameOver, no recapturar el cursor para poder pulsar botones
+                if (HUDManager.Instance != null && HUDManager.Instance.IsPaused) return;
                 LockCursor(true);
             }
         }
@@ -112,14 +135,50 @@ namespace JuegoFPS
             Vector3 move = (transform.right * moveX + transform.forward * moveZ).normalized;
             _controller.Move(move * (moveSpeed * Time.deltaTime));
 
-            if (_controller.isGrounded && _velocity.y < 0f)
+            // Detección de suelo mejorada: _controller.isGrounded con respaldo de SphereCast
+            // (CharacterController a menudo parpadea en falso al avanzar sobre mallas de suelo)
+            bool grounded = _controller.isGrounded;
+            if (!grounded)
             {
-                _velocity.y = -2f;
+                Vector3 sphereOrigin = transform.position + Vector3.up * (_controller.radius + 0.05f);
+                if (Physics.SphereCast(sphereOrigin, _controller.radius * 0.85f, Vector3.down, out RaycastHit hit, 0.22f, ~LayerMask.GetMask("Ignore Raycast"), QueryTriggerInteraction.Ignore))
+                {
+                    if (hit.collider != null && hit.collider.transform != transform)
+                    {
+                        grounded = true;
+                    }
+                }
             }
 
-            if (_controller.isGrounded && kb.spaceKey.wasPressedThisFrame)
+            if (grounded)
+            {
+                _coyoteTimer = coyoteTime;
+                if (_velocity.y < 0f)
+                {
+                    _velocity.y = -2f;
+                }
+            }
+            else
+            {
+                _coyoteTimer -= Time.deltaTime;
+            }
+
+            // Buffer de salto: recuerda la pulsación del espacio
+            if (kb.spaceKey.wasPressedThisFrame)
+            {
+                _jumpBufferTimer = jumpBufferTime;
+            }
+            else if (_jumpBufferTimer > 0f)
+            {
+                _jumpBufferTimer -= Time.deltaTime;
+            }
+
+            // Ejecutar salto si hay intención de salto dentro del tiempo coyote
+            if (_jumpBufferTimer > 0f && _coyoteTimer > 0f)
             {
                 _velocity.y = jumpForce;
+                _jumpBufferTimer = 0f;
+                _coyoteTimer = 0f;
             }
 
             _velocity.y += gravity * Time.deltaTime;

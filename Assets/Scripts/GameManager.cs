@@ -72,6 +72,7 @@ namespace JuegoFPS
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            Time.timeScale = 1f;
             _targetsRemaining = 0;
             _enemiesRemaining = 0;
             _activeProjectiles = 0;
@@ -293,12 +294,33 @@ namespace JuegoFPS
 
         public void RestartGame()
         {
+            Time.timeScale = 1f;
             ResetRun();
             SceneManager.LoadScene(SceneLevel1);
         }
 
+        public void RestartCurrentLevel()
+        {
+            Time.timeScale = 1f;
+            IsGameOver = false;
+            _isTransitioning = false;
+            string curScene = SceneManager.GetActiveScene().name;
+            SetupAmmoForScene(curScene);
+            SceneManager.LoadScene(curScene);
+        }
+
+        public void LoadSpecificLevel(string sceneName)
+        {
+            Time.timeScale = 1f;
+            IsGameOver = false;
+            _isTransitioning = false;
+            SetupAmmoForScene(sceneName);
+            SceneManager.LoadScene(sceneName);
+        }
+
         public void GoToMainMenu()
         {
+            Time.timeScale = 1f;
             ResetRun();
             SceneManager.LoadScene(SceneMenu);
         }

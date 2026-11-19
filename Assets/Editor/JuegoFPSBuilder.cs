@@ -16,7 +16,7 @@ namespace JuegoFPS.Editor
         private const string ScenesDir = "Assets/Scenes";
         private const string PrefabsDir = "Assets/GameAssets/Prefabs";
         private const string MaterialsDir = "Assets/GameAssets/Materials";
-        private const int BuilderVersion = 11;
+        private const int BuilderVersion = 15;
 
         static JuegoFPSBuilder()
         {
@@ -281,6 +281,8 @@ namespace JuegoFPS.Editor
             if (skelAsset != null)
             {
                 visual = Object.Instantiate(skelAsset, root.transform);
+                visual.name = "Visual";
+                visual.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
                 NormalizeModelSize(visual, targetHeight, true);
                 ApplyMaterialRecursive(visual, mat);
                 RemoveAllColliders(visual);
@@ -405,15 +407,22 @@ namespace JuegoFPS.Editor
             {
                 GameObject env = Object.Instantiate(envAsset);
                 env.name = "Escenario_Galeria";
+
+                // Eliminar Box148 (pieza fuera de rango a -399m en el FBX que corrompe el centrado y colisiones)
+                Transform box148 = env.transform.Find("Box148");
+                if (box148 != null) Object.DestroyImmediate(box148.gameObject);
+
                 NormalizeModelSize(env, 85f, true);
-                env.transform.position = new Vector3(0f, 0.02f, 6f);
+                // Leve elevación para evitar Z-fighting con el suelo sin alterar el centrado X y Z
+                env.transform.position += new Vector3(0f, 0.02f, 0f);
                 AddMeshCollidersRecursive(env);
+                Physics.SyncTransforms();
                 ApplyEnvironmentMaterials(env);
             }
 
-            // Jugador
+            // Jugador centrado en el pasillo de tiro
             GameObject player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
-            player.transform.position = new Vector3(-3f, 0.2f, -20f);
+            player.transform.position = new Vector3(0f, 0.2f, -20f);
 
             // 10 Dianas diferenciadas
             CreateTarget("Diana_Normal_1", new Vector3(-6f, 1.8f, 2f), 50, false, matNormal);
@@ -433,7 +442,7 @@ namespace JuegoFPS.Editor
             // 1 Esqueleto guardia opcional en lateral para probar colisión/vidas desde el nivel 1
             GameObject guard = (GameObject)PrefabUtility.InstantiatePrefab(skeletonPrefab);
             guard.name = "Esqueleto_Guardia";
-            guard.transform.position = new Vector3(11f, 0f, 5f);
+            guard.transform.position = new Vector3(11f, 0.2f, 5f);
             EnemyController guardEc = guard.GetComponent<EnemyController>();
             guardEc.countsForLevelCompletion = false;
             guardEc.moveSpeed = 1.6f;
@@ -661,6 +670,61 @@ namespace JuegoFPS.Editor
             hud.weaponText = CreateUIText("WeaponText", canvas.transform, "ARMA: M1911 [1 / 2]", 18, FontStyle.Normal, Color.white,
                 new Vector2(0.98f, 0.03f), new Vector2(0.98f, 0.03f), new Vector2(380, 35), TextAnchor.MiddleRight);
 
+            // Botón de Pausa arriba a la derecha (requisito)
+            Button pauseBtn = CreateUIButton("BtnPausa", canvas.transform, "PAUSA", new Color(0.20f, 0.25f, 0.35f, 0.9f),
+                new Vector2(0.94f, 0.94f), new Vector2(130, 46), font);
+            hud.pauseButton = pauseBtn;
+
+            // Panel de Pausa
+            GameObject pausePanel = CreateUIPanel("PausePanel", canvas.transform, new Color(0.04f, 0.05f, 0.08f, 0.94f),
+                Vector2.zero, Vector2.one);
+            hud.pausePanel = pausePanel;
+
+            CreateUIText("PauseTitle", pausePanel.transform, "JUEGO PAUSADO", 44, FontStyle.Bold, Color.white,
+                new Vector2(0.5f, 0.78f), new Vector2(0.5f, 0.78f), new Vector2(600, 70));
+
+            // Grupo Principal de Pausa (Reanudar, Reiniciar, Elegir Nivel, Menú Principal)
+            GameObject mainPauseGroup = CreateUIPanel("MainPauseGroup", pausePanel.transform, Color.clear, Vector2.zero, Vector2.one);
+            hud.mainPauseGroup = mainPauseGroup;
+
+            Button resumeBtn = CreateUIButton("BtnResume", mainPauseGroup.transform, "REANUDAR", new Color(0.18f, 0.65f, 0.32f),
+                new Vector2(0.5f, 0.60f), new Vector2(340, 58), font);
+            Button restartPauseBtn = CreateUIButton("BtnRestartPause", mainPauseGroup.transform, "REINICIAR", new Color(0.85f, 0.45f, 0.15f),
+                new Vector2(0.5f, 0.48f), new Vector2(340, 58), font);
+            Button levelSelectPauseBtn = CreateUIButton("BtnLevelSelectPause", mainPauseGroup.transform, "ELEGIR NIVEL", new Color(0.20f, 0.55f, 0.85f),
+                new Vector2(0.5f, 0.36f), new Vector2(340, 58), font);
+            Button menuPauseBtn = CreateUIButton("BtnMenuPause", mainPauseGroup.transform, "MENÚ PRINCIPAL", new Color(0.42f, 0.45f, 0.50f),
+                new Vector2(0.5f, 0.24f), new Vector2(340, 58), font);
+
+            hud.resumeButton = resumeBtn;
+            hud.pauseRestartButton = restartPauseBtn;
+            hud.pauseLevelSelectButton = levelSelectPauseBtn;
+            hud.pauseMenuButton = menuPauseBtn;
+
+            // Sub-Panel para Selección de Nivel en Pausa
+            GameObject levelSubPanel = CreateUIPanel("PauseLevelSubPanel", pausePanel.transform, Color.clear, Vector2.zero, Vector2.one);
+            hud.pauseLevelSubPanel = levelSubPanel;
+
+            CreateUIText("SelectLevelTitle", levelSubPanel.transform, "SELECCIONAR NIVEL", 34, FontStyle.Bold, new Color(0.75f, 0.88f, 1f),
+                new Vector2(0.5f, 0.70f), new Vector2(0.5f, 0.70f), new Vector2(600, 50));
+
+            Button lvl1Btn = CreateUIButton("BtnPauseLvl1", levelSubPanel.transform, "NIVEL 1: GALERÍA DE DISPAROS", new Color(0.20f, 0.55f, 0.85f),
+                new Vector2(0.5f, 0.54f), new Vector2(460, 56), font);
+            Button lvl2Btn = CreateUIButton("BtnPauseLvl2", levelSubPanel.transform, "NIVEL 2: ENEMIGOS", new Color(0.82f, 0.52f, 0.16f),
+                new Vector2(0.5f, 0.42f), new Vector2(460, 56), font);
+            Button lvl3Btn = CreateUIButton("BtnPauseLvl3", levelSubPanel.transform, "NIVEL 3: BOSS FINAL", new Color(0.70f, 0.20f, 0.62f),
+                new Vector2(0.5f, 0.30f), new Vector2(460, 56), font);
+            Button backBtn = CreateUIButton("BtnPauseBack", levelSubPanel.transform, "VOLVER", new Color(0.35f, 0.38f, 0.42f),
+                new Vector2(0.5f, 0.17f), new Vector2(260, 48), font);
+
+            hud.pauseLevel1Button = lvl1Btn;
+            hud.pauseLevel2Button = lvl2Btn;
+            hud.pauseLevel3Button = lvl3Btn;
+            hud.pauseLevelBackButton = backBtn;
+
+            levelSubPanel.SetActive(false);
+            pausePanel.SetActive(false);
+
             // Barra de Boss
             GameObject bossPanel = CreateUIPanel("BossPanel", canvas.transform, new Color(0f, 0f, 0f, 0.65f),
                 new Vector2(0.3f, 0.86f), new Vector2(0.7f, 0.92f));
@@ -786,11 +850,18 @@ namespace JuegoFPS.Editor
 
         private static void NormalizeModelSize(GameObject obj, float desiredMaxSize, bool placeOnGround)
         {
-            Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
-            if (renderers.Length == 0) return;
+            Renderer[] allRenderers = obj.GetComponentsInChildren<Renderer>();
+            List<Renderer> renderers = new List<Renderer>();
+            foreach (Renderer r in allRenderers)
+            {
+                // Ignorar piezas erróneas ubicadas a cientos de metros en Y negativo
+                if (r.bounds.center.y < -50f) continue;
+                renderers.Add(r);
+            }
+            if (renderers.Count == 0) return;
 
             Bounds bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++)
+            for (int i = 1; i < renderers.Count; i++)
             {
                 bounds.Encapsulate(renderers[i].bounds);
             }
@@ -804,9 +875,8 @@ namespace JuegoFPS.Editor
 
             if (placeOnGround)
             {
-                renderers = obj.GetComponentsInChildren<Renderer>();
                 Bounds newBounds = renderers[0].bounds;
-                for (int i = 1; i < renderers.Length; i++)
+                for (int i = 1; i < renderers.Count; i++)
                 {
                     newBounds.Encapsulate(renderers[i].bounds);
                 }

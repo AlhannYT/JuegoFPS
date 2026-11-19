@@ -31,6 +31,24 @@ namespace JuegoFPS
         public Button restartButton;
         public Button menuButton;
 
+        [Header("Menú de Pausa")]
+        public Button pauseButton;
+        public GameObject pausePanel;
+        public GameObject mainPauseGroup;
+        public Button resumeButton;
+        public Button pauseRestartButton;
+        public Button pauseLevelSelectButton;
+        public Button pauseMenuButton;
+
+        [Header("Sub-Panel Selección de Nivel en Pausa")]
+        public GameObject pauseLevelSubPanel;
+        public Button pauseLevel1Button;
+        public Button pauseLevel2Button;
+        public Button pauseLevel3Button;
+        public Button pauseLevelBackButton;
+
+        public bool IsPaused { get; private set; }
+
         private float _feedbackTimer;
 
         private void Awake()
@@ -39,6 +57,8 @@ namespace JuegoFPS
 
             if (bossPanel != null) bossPanel.SetActive(false);
             if (endScreenPanel != null) endScreenPanel.SetActive(false);
+            if (pausePanel != null) pausePanel.SetActive(false);
+            if (pauseLevelSubPanel != null) pauseLevelSubPanel.SetActive(false);
             if (feedbackText != null) feedbackText.text = string.Empty;
 
             if (restartButton != null)
@@ -56,6 +76,106 @@ namespace JuegoFPS
                     if (GameManager.Instance != null) GameManager.Instance.GoToMainMenu();
                 });
             }
+
+            // Configurar botones de pausa
+            if (pauseButton != null)
+            {
+                pauseButton.onClick.AddListener(TogglePause);
+            }
+
+            if (resumeButton != null)
+            {
+                resumeButton.onClick.AddListener(() => SetPaused(false));
+            }
+
+            if (pauseRestartButton != null)
+            {
+                pauseRestartButton.onClick.AddListener(() =>
+                {
+                    SetPaused(false);
+                    if (GameManager.Instance != null) GameManager.Instance.RestartCurrentLevel();
+                });
+            }
+
+            if (pauseLevelSelectButton != null)
+            {
+                pauseLevelSelectButton.onClick.AddListener(() =>
+                {
+                    if (mainPauseGroup != null) mainPauseGroup.SetActive(false);
+                    if (pauseLevelSubPanel != null) pauseLevelSubPanel.SetActive(true);
+                });
+            }
+
+            if (pauseLevelBackButton != null)
+            {
+                pauseLevelBackButton.onClick.AddListener(() =>
+                {
+                    if (pauseLevelSubPanel != null) pauseLevelSubPanel.SetActive(false);
+                    if (mainPauseGroup != null) mainPauseGroup.SetActive(true);
+                });
+            }
+
+            if (pauseLevel1Button != null)
+            {
+                pauseLevel1Button.onClick.AddListener(() =>
+                {
+                    SetPaused(false);
+                    if (GameManager.Instance != null) GameManager.Instance.LoadSpecificLevel(GameManager.SceneLevel1);
+                });
+            }
+
+            if (pauseLevel2Button != null)
+            {
+                pauseLevel2Button.onClick.AddListener(() =>
+                {
+                    SetPaused(false);
+                    if (GameManager.Instance != null) GameManager.Instance.LoadSpecificLevel(GameManager.SceneLevel2);
+                });
+            }
+
+            if (pauseLevel3Button != null)
+            {
+                pauseLevel3Button.onClick.AddListener(() =>
+                {
+                    SetPaused(false);
+                    if (GameManager.Instance != null) GameManager.Instance.LoadSpecificLevel(GameManager.SceneLevel3);
+                });
+            }
+
+            if (pauseMenuButton != null)
+            {
+                pauseMenuButton.onClick.AddListener(() =>
+                {
+                    SetPaused(false);
+                    if (GameManager.Instance != null) GameManager.Instance.GoToMainMenu();
+                });
+            }
+        }
+
+        private void OnDestroy()
+        {
+            Time.timeScale = 1f;
+        }
+
+        public void TogglePause()
+        {
+            if (GameManager.Instance != null && GameManager.Instance.IsGameOver) return;
+            SetPaused(!IsPaused);
+        }
+
+        public void SetPaused(bool pause)
+        {
+            IsPaused = pause;
+            Time.timeScale = pause ? 0f : 1f;
+
+            if (pausePanel != null)
+            {
+                pausePanel.SetActive(pause);
+                if (mainPauseGroup != null) mainPauseGroup.SetActive(true);
+                if (pauseLevelSubPanel != null) pauseLevelSubPanel.SetActive(false);
+            }
+
+            PlayerControllerFPS.LockCursor(!pause);
         }
 
         private void Update()

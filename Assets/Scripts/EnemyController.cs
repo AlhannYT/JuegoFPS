@@ -19,6 +19,8 @@ namespace JuegoFPS
         public float moveSpeed = 3.2f;
         public float detectionRange = 35f;
         public float contactDamageDistance = 1.35f;
+        [Tooltip("Elevación de los pies para apoyarse exactamente sobre el suelo")]
+        public float feetOffset = 0.02f;
 
         private int _currentHealth;
         private Transform _player;
@@ -33,11 +35,34 @@ namespace JuegoFPS
         {
             _currentHealth = maxHealth;
             _baseY = transform.position.y;
+            SnapToBaseGround();
+            Vector3 initPos = transform.position;
+            initPos.y = _baseY;
+            transform.position = initPos;
 
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null)
             {
                 _player = playerObj.transform;
+
+                // Orientar inmediatamente hacia el jugador al aparecer
+                Vector3 toPlayer = _player.position - transform.position;
+                Vector3 flatToPlayer = new Vector3(toPlayer.x, 0f, toPlayer.z);
+                if (flatToPlayer.sqrMagnitude > 0.01f)
+                {
+                    transform.rotation = Quaternion.LookRotation(flatToPlayer.normalized);
+                }
+            }
+
+            // Asegurar que el modelo visual 3D esté mirando hacia adelante (+Z)
+            // Con +90° el modelo miraba hacia atrás (de espaldas), por lo que -90° (270°) lo orienta exactamente de frente
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                Transform child = transform.GetChild(i);
+                if (child.name.Contains("Skeleton") || child.name == "Visual")
+                {
+                    child.localRotation = Quaternion.Euler(0f, -90f, 0f);
+                }
             }
 
             if (countsForLevelCompletion && GameManager.Instance != null)
@@ -71,6 +96,9 @@ namespace JuegoFPS
             {
                 Vector3 dir = flatToPlayer.normalized;
                 transform.position += dir * (moveSpeed * Time.deltaTime);
+
+                // Ajustar al nivel del suelo en la posición actual
+                SnapToBaseGround();
 
                 // Rotar suavemente hacia el jugador
                 Quaternion targetRot = Quaternion.LookRotation(dir);
@@ -187,6 +215,30 @@ namespace JuegoFPS
                 Rigidbody rb = part.AddComponent<Rigidbody>();
                 rb.AddForce(Random.onUnitSphere * Random.Range(4f, 9f), ForceMode.Impulse);
                 Destroy(part, 0.8f);
+            }
+        }
+
+        /// <summary>
+        /// Detecta la superficie exacta del suelo bajo el esqueleto y ajusta la altura de los pies para que apoyen sobre el suelo.
+        /// </summary>
+        private void SnapToBaseGround()
+        {
+            RaycastHit[] hits = Physics.RaycastAll(transform.position + Vector3.up * 2f, Vector3.down, 6f);
+            float highestFloorY = float.MinValue;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                RaycastHit h = hits[i];
+                if (h.collider != null && h.collider.transform != transform && !h.collider.transform.IsChildOf(transform) && !h.collider.isTrigger)
+                {
+                    if (h.point.y > highestFloorY)
+                    {
+                        highestFloorY = h.point.y;
+                    }
+                }
+            }
+            if (highestFloorY > float.MinValue)
+            {
+                _baseY = highestFloorY + feetOffset;
             }
         }
     }
