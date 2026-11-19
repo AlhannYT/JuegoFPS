@@ -6,7 +6,16 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
+    path: Assets/Scenes/00 Menu Principal.unity
+    guid: 77ba8fd9c4fc3064ab957c880349110e
+  - enabled: 1
+    path: Assets/Scenes/01 Galeria de disparos.unity
+    guid: ab48587fb28016d4f8e8bad1fb96c385
+  - enabled: 1
+    path: Assets/Scenes/02 Nivel Enemigos.unity
+    guid: 89afc0bbb72f1174b89c0ac48f0b88c9
+  - enabled: 1
+    path: Assets/Scenes/03 Nivel Boss.unity
+    guid: b4693cdbc2cba2044a253cd5393d26e6
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

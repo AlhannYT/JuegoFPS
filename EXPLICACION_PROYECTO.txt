@@ -1,0 +1,79 @@
+======================================================================
+OPERACIÓN: GALERÍA FPS - DOCUMENTACIÓN DEL PROYECTO (UNITY)
+======================================================================
+
+1. DESCRIPCIÓN GENERAL
+----------------------
+Videojuego First-Person Shooter (FPS) desarrollado en Unity 6 (URP)
+inspirado en una galería de tiro y combate estilo Call of Duty.
+Consta de un menú principal y tres niveles jugables progresivos:
+  - 00 Menu Principal: Pantalla de inicio con acceso al juego, controles y salida.
+  - 01 Galeria de disparos: Nivel de tiro con 10 dianas de puntuación diferenciada
+    y un esqueleto guardia para validar colisiones y vidas.
+  - 02 Nivel Enemigos: Arena táctica con oleada de 6 esqueletos que persiguen
+    al jugador.
+  - 03 Nivel Boss: Combate final contra el "Señor Esqueleto (BOSS)" con barra
+    de vida en el HUD y dos escoltas.
+
+2. CÓMO SE HA REALIZADO Y DECISIONES TÉCNICAS
+---------------------------------------------
+a) Sistema de Entrada (Unity Input System - activeInputHandler = 1):
+   El proyecto utiliza el nuevo Input System de Unity (`UnityEngine.InputSystem`).
+   Se optó por leer directamente `Keyboard.current` y `Mouse.current` en
+   `PlayerControllerFPS.cs` y `WeaponController.cs`, y usar `InputSystemUIInputModule`
+   en el EventSystem de la UI, garantizando compatibilidad total sin errores de
+   input heredado. El movimiento responde a las flechas del teclado (requisito
+   de la actividad) y también a WASD como comodidad adicional.
+
+b) Proyectiles físicos y destrucción mutua (`Projectile.cs` + `TargetObject.cs`):
+   En lugar de usar únicamente Raycast instantáneo, al hacer clic izquierdo se
+   instancia un proyectil físico con `Rigidbody` (`ContinuousDynamic`) dirigido
+   al centro exacto de la mira. Esto permite ver la trayectoria del disparo y
+   cumplir con la destrucción tanto del proyectil como del objetivo impactado.
+
+c) Puntuación diferenciada por tipo de objetivo (`TargetObject.cs`):
+   Cada diana u objetivo expone su nombre (`targetName`) y valor en puntos
+   (`pointsValue`), además de movimiento oscilatorio opcional:
+     - Diana Normal: 50 puntos
+     - Diana Oro: 100 puntos
+     - Diana Móvil: 150 puntos
+     - Diana Maestra (móvil lejana): 250 puntos
+     - Esqueleto: 150 puntos
+     - Señor Esqueleto (Boss): 500 puntos
+   Al impactar, se imprime en consola (`Debug.Log`) y se muestra en el HUD.
+
+d) Munición, Vidas, Enemigos y Fin de Partida (`GameManager.cs`):
+   El `GameManager` persiste entre escenas (`DontDestroyOnLoad`) manteniendo
+   la puntuación y vidas acumuladas.
+   - Si las vidas llegan a 0 (por chocar con un enemigo, con 1.2s de
+     invulnerabilidad entre golpes), termina la partida (Derrota).
+   - Si la munición llega a 0 y no quedan proyectiles activos en vuelo sin
+     haber completado los objetivos del nivel, termina la partida (Derrota).
+   - Al derrotar al Boss en el nivel 3, se muestra el menú de Victoria con la
+     puntuación final, vidas restantes y botones para "Volver a jugar" o ir al
+     "Menú Principal".
+
+e) Sonido Procedural (`ProceduralAudio.cs`):
+   Para garantizar retroalimentación sonora inmediata sin depender de archivos
+   `.wav` externos, los sonidos de disparo (pistola M1911 y rifle SCAR),
+   impacto en diana, impacto en enemigo, daño al jugador, victoria y derrota
+   se sintetizan en tiempo de ejecución mediante `AudioClip.Create`.
+
+f) Importación de modelos .GLB y normalización de escala (`JuegoFPSBuilder.cs`):
+   Los modelos `target.glb` y `free_fps_arms_with_glove.glb` requieren el
+   paquete oficial `com.unity.cloud.gltfast` (añadido en `Packages/manifest.json`).
+   Además, se creó un constructor automático en `Assets/Editor/JuegoFPSBuilder.cs`
+   que normaliza la escala de todos los modelos 3D (`M1911.fbx`, `SCAR.fbx`,
+   `SM_Skeleton_Variant_1.fbx`, `shooting+env.FBX`, `target.glb`, manos),
+   aplica materiales URP con sus texturas y configura las 4 escenas en
+   `Build Settings`.
+
+3. CONTROLES
+------------
+- Flechas del teclado (o W/A/S/D): Moverse
+- Ratón: Apuntar
+- Clic izquierdo: Disparar
+- Teclas 1 / 2 o Rueda del ratón: Cambiar entre M1911 (Pistola) y SCAR (Rifle)
+- Barra espaciadora: Saltar
+- ESC: Bloquear / Desbloquear el cursor
+======================================================================
